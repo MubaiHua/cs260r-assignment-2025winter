@@ -2,3 +2,5 @@ assignment3/MetaDrive-Tut-Hard-v0/
 assignment3/Pendulum-v1/
 assignment3/CartPole-v1/
 *.pyc
+.html
+.pdf
