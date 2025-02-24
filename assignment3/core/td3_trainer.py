@@ -23,7 +23,7 @@ sys.path.append(current_dir)
 sys.path.append(osp.dirname(current_dir))
 print(current_dir)
 
-device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class ReplayBuffer(object):
@@ -38,7 +38,7 @@ class ReplayBuffer(object):
         self.reward = np.zeros((max_size, 1))
         self.not_done = np.zeros((max_size, 1))
 
-        self.device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def add(self, state, action, next_state, reward, done):
         self.state[self.ptr] = state

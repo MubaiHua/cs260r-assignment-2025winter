@@ -33,7 +33,7 @@ class PPOConfig:
     build a class to represent config."""
     def __init__(self):
         # Common
-        self.device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.save_freq = 10
         self.log_freq = 1
         self.num_envs = 1
@@ -124,13 +124,25 @@ class PPOTrainer:
 
         if self.discrete:  # Please use categorical distribution.
             logits, values = self.model(obs)
-            pass
+            dist = Categorical(logits=logits)
+            if deterministic:
+                actions = torch.argmax(dist.probs, dim=-1)
+            else:
+                actions = dist.sample()
+            action_log_probs = dist.log_prob(actions)
 
             actions = actions.view(-1, 1)  # In discrete case only return the chosen action.
 
         else:  # Please use normal distribution.
             means, log_std, values = self.model(obs)
-            pass
+            std = torch.exp(log_std)
+            dist = torch.distributions.Normal(means, std)
+            if deterministic:
+                actions = means
+            else:
+                actions = dist.sample()
+
+            action_log_probs = dist.log_prob(actions).sum(dim=-1, keepdim=True)
 
             actions = actions.view(-1, self.num_actions)
 
@@ -150,16 +162,17 @@ class PPOTrainer:
         if self.discrete:
             assert not torch.is_floating_point(act)
             logits, values = self.model(obs)
-            action_log_probs = None
-            dist_entropy = None
-            pass
+            dist = Categorical(logits=logits)
+            action_log_probs = dist.log_prob(act.squeeze(-1))
+            dist_entropy = dist.entropy()
 
         else:
             assert torch.is_floating_point(act)
             means, log_std, values = self.model(obs)
-            action_log_probs = None
-            dist_entropy = None
-            pass
+            std = torch.exp(log_std)
+            dist = torch.distributions.Normal(means, std)
+            action_log_probs = dist.log_prob(act).sum(dim=-1, keepdim=True)
+            dist_entropy = dist.entropy().sum(dim=-1)
 
         values = values.view(-1, 1)
         action_log_probs = action_log_probs.view(-1, 1)
@@ -212,13 +225,15 @@ class PPOTrainer:
         assert dist_entropy.requires_grad
 
         # TODO: Implement policy loss
-        policy_loss = None
-        ratio = None  # The importance sampling factor, the ratio of new policy prob over old policy prob
-        pass
+        ratio = torch.exp(action_log_probs - old_action_log_probs_batch)  # The importance sampling factor, the ratio of new policy prob over old policy prob
+        unclipped_surrogate  = ratio * adv_targ
+        clipped_surrogate = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * adv_targ
+
+        policy_loss = -torch.min(unclipped_surrogate, clipped_surrogate)
+        policy_loss_mean = policy_loss.mean()
 
         # TODO: Implement value loss
-        # value_loss = None
-        pass
+        value_loss = F.mse_loss(values, return_batch)
 
         value_loss_mean = value_loss.mean()
 
@@ -285,7 +300,7 @@ if __name__ == '__main__':
         def __init__(self):
             super(FakeConfig, self).__init__()
 
-            self.device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.num_envs = 1
             self.num_steps = 200
             self.gamma = 0.99
