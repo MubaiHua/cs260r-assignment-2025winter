@@ -33,7 +33,7 @@ class PPOConfig:
     build a class to represent config."""
     def __init__(self):
         # Common
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
         self.save_freq = 10
         self.log_freq = 1
         self.num_envs = 1
@@ -285,7 +285,7 @@ if __name__ == '__main__':
         def __init__(self):
             super(FakeConfig, self).__init__()
 
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.device = torch.device("xpu" if torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
             self.num_envs = 1
             self.num_steps = 200
             self.gamma = 0.99
